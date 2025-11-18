@@ -1,54 +1,100 @@
 import pandas as pd
+import numpy as np
 
 def preprocess(df):
-    """
-    Spaceship Titanic 데이터 전처리 함수.
-    train/test에 모두 공통 적용 가능.
-    """
 
-    # ------------------------------
-    # 1. Cabin 컬럼 분해
-    # ------------------------------
-    # Cabin 구조: Deck/Num/Side → "B/0/P"
-    df['Cabin'] = df['Cabin'].fillna('Missing/Missing/Missing')
+    # =========================================================
+    # 1. Cabin → Deck / Num / Side
+    # =========================================================
+    df['Cabin'] = df['Cabin'].fillna("Missing/Missing/Missing")
     df[['Deck', 'CabinNum', 'Side']] = df['Cabin'].str.split('/', expand=True)
-
-    # CabinNum은 숫자 → float 변환
     df['CabinNum'] = pd.to_numeric(df['CabinNum'], errors='coerce')
 
-    # ------------------------------
-    # 2. Boolean 컬럼 처리
-    # ------------------------------
+    # Deck: Missing 포함 카테고리 인코딩
+    df['Deck'] = df['Deck'].fillna("Missing")
+
+    # Side: L/R → 0/1
+    df['Side'] = df['Side'].map({'P':0, 'S':1}).fillna(-1)
+
+    # CabinNum 구간화 (효과 매우 좋음)
+    df["CabinNum_bin"] = pd.cut(
+        df["CabinNum"],
+        bins=[-1, 0, 50, 100, 150, 200, 300],
+        labels=False
+    ).astype("float")
+
+
+    # =========================================================
+    # 2. Boolean 처리
+    # =========================================================
     bool_cols = ["CryoSleep", "VIP"]
     for col in bool_cols:
-        df[col] = df[col].fillna(False).astype(bool)
+        df[col] = df[col].fillna(False).astype(int)   # bool → int 가 XGBoost에 더 좋음
 
-    # ------------------------------
-    # 3. 범주형(Categorical) 결측치 처리
-    # ------------------------------
-    cat_cols = ["HomePlanet", "Destination", "Deck", "Side", "Name"]
+
+    # =========================================================
+    # 3. 범주형 missing
+    # =========================================================
+    cat_cols = ["HomePlanet", "Destination", "Deck", "Name"]
     for col in cat_cols:
         df[col] = df[col].fillna("Missing").astype(str)
 
-    # ------------------------------
-    # 4. 수치형(Numerical) 결측치 처리 → median
-    # ------------------------------
+
+    # =========================================================
+    # 4. 숫자형 기본 결측치 처리
+    # =========================================================
     num_cols = ["Age", "RoomService", "FoodCourt", "ShoppingMall", "Spa", "VRDeck", "CabinNum"]
     for col in num_cols:
         df[col] = df[col].fillna(df[col].median())
 
-    # ------------------------------
-    # 5. PassengerId 분리 (그룹별 feature)
-    # ------------------------------
-    # PassengerId 구조: "0001_01" → group, number
+
+    # =========================================================
+    # 5. Spending Feature 강화
+    # =========================================================
+    spend_cols = ["RoomService","FoodCourt","ShoppingMall","Spa","VRDeck"]
+
+    df["Spend_Total"] = df[spend_cols].sum(axis=1)
+    df["Spend_Log"] = np.log1p(df["Spend_Total"])      # log 변환이 성능에 매우 도움
+
+    # 항목별로 binary flag 추가
+    for col in spend_cols:
+        df[col + "_bool"] = (df[col] > 0).astype(int)
+
+
+    # =========================================================
+    # 6. Age Feature 강화
+    # =========================================================
+    df["Age_bin"] = pd.cut(
+        df["Age"],
+        bins=[0,12,18,30,50,100],
+        labels=False
+    ).astype("float")
+
+
+    # =========================================================
+    # 7. Group Feature 강화
+    # =========================================================
     df[['Group', 'GroupMember']] = df['PassengerId'].str.split('_', expand=True)
     df['Group'] = df['Group'].astype(int)
     df['GroupMember'] = df['GroupMember'].astype(int)
 
-    # ------------------------------
-    # 6. 사용하지 않을 컬럼 제거
-    # ------------------------------
-    drop_cols = ["Cabin"]   # 원본 Cabin은 제거 (Deck/CabinNum/Side로 분해했기 때문)
+    # 그룹 크기
+    df["Group_Size"] = df.groupby("Group")["Group"].transform("count")
+
+    # 그룹 평균 나이
+    df["Group_Age_Mean"] = df.groupby("Group")["Age"].transform("mean")
+
+    # 그룹 평균 소비
+    df["Group_Spend_Mean"] = df.groupby("Group")["Spend_Total"].transform("mean")
+
+    # 혼자인지 여부
+    df["Is_Alone"] = (df["Group_Size"] == 1).astype(int)
+
+
+    # =========================================================
+    # 8. 최종 불필요 컬럼 제거
+    # =========================================================
+    drop_cols = ["Cabin", "Name"]     # Name은 의미 없음
     df = df.drop(columns=drop_cols)
 
     return df
