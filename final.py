@@ -63,14 +63,20 @@ X_train, X_valid, y_train, y_valid = train_test_split(
 # 6. 모델 생성
 # =====================================================
 model = XGBClassifier(
-    n_estimators=500,
-    learning_rate=0.03,
-    max_depth=6,
-    subsample=0.8,
-    colsample_bytree=0.8,
+    n_estimators=1300,       # 더 많은 트리
+    learning_rate=0.015,     # 더 낮은 학습률 (성능 상승)
+    max_depth=7,             # 깊게
+    subsample=0.9,
+    colsample_bytree=0.9,
+    min_child_weight=1,
+    gamma=0.1,               # 과적합 방지
+    reg_lambda=1.5,          # L2 규제 강화
+    reg_alpha=0.3,           # L1 규제
     tree_method="hist",
-    random_state=42
+    random_state=42,
+    n_jobs=-1
 )
+
 
 
 # =====================================================
