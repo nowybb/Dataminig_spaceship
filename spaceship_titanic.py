@@ -1,12 +1,10 @@
 import pandas as pd
 
 def load_data(filepath: str):
-    """
-    CSV 파일 로드 함수
-    """
+   
     try:
         df = pd.read_csv(filepath)
-        print(f"✓ {filepath} 불러오기 성공!")
+        print(f"\n- {filepath} 불러오기 성공!")
         print("  데이터 크기:", df.shape)
         return df
 
