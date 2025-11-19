@@ -14,8 +14,6 @@ from prepro_train import preprocess
 # 1. 데이터 로드
 train = load_data("train.csv")
 test = load_data("test.csv")
-
-# test PassengerId 따로 저장 
 test_passenger_ids = test["PassengerId"].copy()
 
 
@@ -39,10 +37,7 @@ print("\n- One-hot Encoding 중...")
 X = pd.get_dummies(X)
 test = pd.get_dummies(test)
 
-# 컬럼을 일치시켜줌
 X, test = X.align(test, join='left', axis=1)
-
-# test에서 없는 값 생기면 0으로 채움
 test = test.fillna(0)
 
 
@@ -81,7 +76,6 @@ print("\n- 모델 학습 중...(검증용 split)")
 for _ in tqdm(range(1), desc="Training (validation)"):
     model.fit(X_train, y_train)
 
-# 검증 정확도 출력
 valid_pred = model.predict(X_valid)
 valid_acc = accuracy_score(y_valid, valid_pred)
 print(f"\n- 검증 정확도: {valid_acc:.4f}\n")

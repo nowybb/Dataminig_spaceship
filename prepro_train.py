@@ -13,7 +13,6 @@ def preprocess(df):
     df['Deck'] = df['Deck'].fillna("Missing")
     df['Side'] = df['Side'].map({'P':0, 'S':1}).fillna(-1)
 
-    # CabinNum 구간화
     df["CabinNum_bin"] = pd.cut(
         df["CabinNum"],
         bins=[-1, 0, 50, 100, 150, 200, 300],
@@ -25,7 +24,7 @@ def preprocess(df):
     # 2. Boolean 처리
     bool_cols = ["CryoSleep", "VIP"]
     for col in bool_cols:
-        df[col] = df[col].fillna(False).astype(int)   # bool → int 가 XGBoost에 더 좋음
+        df[col] = df[col].fillna(False).astype(int)   
 
 
    
